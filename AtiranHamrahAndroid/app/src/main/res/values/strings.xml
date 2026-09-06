@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">آتیران همراه</string>
+    <string name="login_failed">نام کاربری یا رمز عبور نادرست است</string>
+    <string name="server_unreachable">عدم دسترسی به سرور؛ حالت نمایشی فعال شد</string>
+    <string name="demo_mode">حالت نمایشی</string>
+    <string name="live_mode">متصل به سرور</string>
+</resources>

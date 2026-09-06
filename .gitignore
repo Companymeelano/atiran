@@ -1,0 +1,14 @@
+# موقت‌ها و خروجی‌ها
+extracted/
+*.log
+.DS_Store
+Thumbs.db
+
+# Gradle / Android Studio
+AtiranHamrahAndroid/.gradle/
+AtiranHamrahAndroid/build/
+AtiranHamrahAndroid/app/build/
+AtiranHamrahAndroid/local.properties
+AtiranHamrahAndroid/.idea/
+*.iml
+captures/

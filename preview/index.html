@@ -1,0 +1,867 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>پیش‌نمایش آتیران همراه — طراحی اپ اندروید</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#070B16; --bg2:#0A0F1E; --surface:#0E1526; --surface2:#131C33;
+  --teal:#00C9B1; --teal2:#2FE0C8; --teal-d:#00564C;
+  --gold:#FFC94A; --gold2:#F5A623; --gold-d:#B97E00;
+  --danger:#FF6B6B; --success:#2ECC97; --warn:#FFA94D; --info:#5B8DEF; --violet:#9B8CFF; --rose:#FF7EB3;
+  --text:#EAF0FF; --text2:#A7B1CE; --glass:rgba(255,255,255,.08); --stroke:rgba(255,255,255,.14);
+  --font:'Vazirmatn',Tahoma,'Segoe UI',sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0;font-family:var(--font)}
+body{
+  min-height:100vh;background:radial-gradient(1200px 600px at 80% -10%,#123 0%,var(--bg) 60%);
+  display:flex;align-items:center;justify-content:center;gap:36px;padding:24px;color:var(--text);
+  flex-wrap:wrap;
+}
+/* ---------- قاب گوشی ---------- */
+.phone{
+  width:390px;height:812px;border-radius:48px;background:#05070d;
+  border:1px solid #2a3350;box-shadow:0 40px 90px rgba(0,0,0,.75),0 0 0 8px #10162a,0 0 60px rgba(0,201,177,.12);
+  position:relative;overflow:hidden;flex-shrink:0;
+}
+.notch{position:absolute;top:12px;left:50%;transform:translateX(-50%);width:120px;height:26px;background:#05070d;border-radius:20px;z-index:60}
+.statusbar{position:absolute;top:0;left:0;right:0;height:44px;display:flex;justify-content:space-between;align-items:center;padding:14px 26px 0;font-size:12px;color:var(--text2);z-index:50;pointer-events:none}
+.screen{position:absolute;inset:0;overflow-y:auto;overflow-x:hidden;scrollbar-width:none;background:var(--bg2)}
+.screen::-webkit-scrollbar{display:none}
+/* ---------- پس‌زمینه شفق ---------- */
+.aurora{position:absolute;inset:0;pointer-events:none;overflow:hidden;z-index:0}
+.aurora::before,.aurora::after{content:'';position:absolute;border-radius:50%;filter:blur(60px);opacity:.55}
+.aurora::before{width:340px;height:340px;background:radial-gradient(circle,rgba(0,201,177,.35),transparent 70%);top:-80px;left:-60px;animation:drift 12s ease-in-out infinite alternate}
+.aurora::after{width:380px;height:380px;background:radial-gradient(circle,rgba(245,166,35,.22),transparent 70%);bottom:-120px;right:-80px;animation:drift 15s ease-in-out infinite alternate-reverse}
+@keyframes drift{from{transform:translate(0,0)}to{transform:translate(40px,30px)}}
+.page{position:relative;z-index:1;padding:52px 18px 120px;display:none;animation:pagein .35s ease}
+.page.active{display:block}
+@keyframes pagein{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+/* ---------- اجزای مشترک ---------- */
+.card{background:var(--glass);border:1px solid var(--stroke);border-radius:22px;padding:16px;position:relative;overflow:hidden}
+.card::before{content:'';position:absolute;inset:0;background:linear-gradient(135deg,rgba(255,255,255,.06),transparent 55%);border-radius:22px;pointer-events:none}
+.h-row{display:flex;align-items:center;gap:10px;margin-bottom:4px}
+.h1{font-size:21px;font-weight:900}
+.h2{font-size:15px;font-weight:800}
+.sub{color:var(--text2);font-size:11.5px}
+.muted{color:var(--text2)}
+.chip{display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:700;padding:4px 10px;border-radius:50px;border:1px solid transparent;white-space:nowrap}
+.chip.teal{color:var(--teal);background:rgba(0,201,177,.14);border-color:rgba(0,201,177,.35)}
+.chip.gold{color:var(--gold);background:rgba(255,201,74,.12);border-color:rgba(255,201,74,.3)}
+.chip.red{color:var(--danger);background:rgba(255,107,107,.12);border-color:rgba(255,107,107,.3)}
+.chip.green{color:var(--success);background:rgba(46,204,151,.12);border-color:rgba(46,204,151,.3)}
+.chip.warn{color:var(--warn);background:rgba(255,169,77,.12);border-color:rgba(255,169,77,.3)}
+.chip.info{color:var(--info);background:rgba(91,141,239,.12);border-color:rgba(91,141,239,.3)}
+.section{display:flex;align-items:center;gap:8px;margin:20px 0 10px}
+.section .bar{width:4px;height:16px;border-radius:3px;background:linear-gradient(#00C9B1,#00564C)}
+.section .title{font-weight:800;font-size:15px}
+.section .more{margin-inline-start:auto;color:var(--text2);font-size:12px;cursor:pointer}
+/* ---------- دکمه سه‌بعدی ---------- */
+.btn3d{
+  --face1:#00A38F;--face2:#00937F;--ex:#00443B;--txt:#EFFFFC;
+  display:flex;align-items:center;justify-content:center;gap:8px;
+  width:100%;height:56px;border:none;border-radius:20px;cursor:pointer;
+  font-family:var(--font);font-size:14.5px;font-weight:800;color:var(--txt);
+  background:linear-gradient(var(--face1),var(--face2));
+  box-shadow:0 9px 0 0 var(--ex),0 16px 24px rgba(0,0,0,.45);
+  position:relative;transition:transform .09s ease, box-shadow .09s ease;
+}
+.btn3d::after{content:'';position:absolute;inset:2px 8px auto 8px;height:42%;border-radius:16px 16px 40% 40%;background:linear-gradient(rgba(255,255,255,.28),transparent);pointer-events:none}
+.btn3d:active{transform:translateY(7px);box-shadow:0 2px 0 0 var(--ex),0 6px 10px rgba(0,0,0,.4)}
+.btn3d.gold{--face1:#FFC94A;--face2:#F5A623;--ex:#B97E00;--txt:#3D2A00}
+.btn3d.ghost{--face1:rgba(255,255,255,.12);--face2:rgba(255,255,255,.07);--ex:rgba(255,255,255,.08);--txt:var(--text)}
+.btn3d.danger{--face1:#FF7A7A;--face2:#E14D4D;--ex:#7A1F1F;--txt:#FFF5F5}
+.btn3d:disabled{opacity:.45;cursor:not-allowed}
+/* ---------- کاشی منو ---------- */
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.tile{
+  aspect-ratio:1/1.02;border-radius:26px;border:none;cursor:pointer;color:#fff;
+  display:flex;flex-direction:column;justify-content:flex-end;align-items:flex-start;gap:4px;
+  padding:14px;position:relative;overflow:hidden;text-align:right;
+  transition:transform .12s cubic-bezier(.34,1.56,.64,1);
+  box-shadow:0 10px 22px rgba(0,0,0,.35);
+}
+.tile:active{transform:scale(.94)}
+.tile .glow{position:absolute;width:130%;aspect-ratio:1;border-radius:50%;top:-18%;right:-20%;filter:blur(6px);opacity:.35}
+.tile .sheen{position:absolute;inset:0;border-radius:26px;border:1.5px solid transparent;
+  background:linear-gradient(rgba(255,255,255,.26),transparent 55%) border-box;
+  -webkit-mask:linear-gradient(#000 0 0) padding-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite:xor;mask-composite:exclude;pointer-events:none}
+.tile .ic{width:44px;height:44px;border-radius:50%;background:rgba(255,255,255,.16);display:flex;align-items:center;justify-content:center;font-size:22px;backdrop-filter:blur(4px)}
+.tile .t{font-weight:800;font-size:15px}
+.tile .s{font-size:10.5px;opacity:.78}
+.tile .badge{position:absolute;top:12px;right:12px;background:#9FF5E5;color:#03201C;font-size:11px;font-weight:800;padding:3px 9px;border-radius:50px}
+/* ---------- داک پایین ---------- */
+.dock-wrap{position:absolute;bottom:0;left:0;right:0;z-index:40;padding:0 14px 12px}
+.dock{height:72px;border-radius:26px;background:rgba(14,21,38,.94);border:1px solid var(--stroke);display:flex;align-items:center;padding:0 10px;box-shadow:0 -6px 30px rgba(0,0,0,.5);backdrop-filter:blur(14px)}
+.dock .item{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;cursor:pointer;color:var(--text2);font-size:10px;font-weight:600;transition:.15s}
+.dock .item .icw{width:46px;height:28px;border-radius:50px;display:flex;align-items:center;justify-content:center;font-size:19px;transition:.15s}
+.dock .item.on{color:var(--teal)}
+.dock .item.on .icw{background:rgba(0,201,177,.2)}
+.dock .gap{flex:0.95}
+.fab{position:absolute;bottom:56px;left:50%;transform:translateX(-50%);width:64px;height:64px;border-radius:50%;border:none;cursor:pointer;
+  background:linear-gradient(#FFC94A,#F5A623);color:#3D2A00;font-weight:900;font-size:10px;
+  box-shadow:0 0 0 5px #B97E00,0 0 0 6.5px rgba(255,255,255,.35),0 14px 28px rgba(0,0,0,.5);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;transition:.12s}
+.fab:active{transform:translateX(-50%) scale(.92)}
+.fab .plus{font-size:24px;line-height:1}
+/* ---------- اسپلش ---------- */
+#splash{position:absolute;inset:0;z-index:100;background:var(--bg);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:0;transition:opacity .5s}
+#splash .logo{width:138px;height:138px;border-radius:32px;box-shadow:0 0 80px rgba(0,201,177,.35);animation:pop .7s cubic-bezier(.34,1.56,.64,1)}
+@keyframes pop{from{transform:scale(.3);opacity:0}to{transform:scale(1);opacity:1}}
+.dots{display:flex;gap:8px;margin-top:40px}
+.dots i{width:7px;height:7px;border-radius:50%;background:var(--teal2);opacity:.35;animation:blink 1s infinite}
+.dots i:nth-child(2){background:var(--gold);animation-delay:.33s}
+.dots i:nth-child(3){animation-delay:.66s}
+@keyframes blink{0%,100%{opacity:.3;transform:scale(1)}50%{opacity:1;transform:scale(1.35)}}
+/* ---------- گوی آماری ---------- */
+.orb{width:86px;height:86px;position:relative;flex-shrink:0}
+.orb svg{transform:rotate(-90deg)}
+.orb .ctr{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center}
+.ring-anim{stroke-dasharray:239;stroke-dashoffset:239;animation:ring 1.2s .2s ease forwards}
+@keyframes ring{to{stroke-dashoffset:var(--off)}}
+.money{font-variant-numeric:tabular-nums}
+/* ---------- سطرها ---------- */
+.row-item{display:flex;align-items:center;gap:11px;padding:13px;border-radius:20px;background:var(--glass);border:1px solid var(--stroke);cursor:pointer;transition:.15s}
+.row-item:hover{background:rgba(255,255,255,.12)}
+.row-item:active{transform:scale(.98)}
+.avatar{width:44px;height:44px;border-radius:50%;background:linear-gradient(135deg,#00A38F,#00564C);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:15px;color:#fff;flex-shrink:0}
+.avatar.red{background:linear-gradient(135deg,#8A2D2D,#4A1414)}
+.avatar.gold{background:linear-gradient(135deg,#F5A623,#B97E00)}
+.pill-row{display:flex;gap:8px;overflow-x:auto;padding-bottom:4px;scrollbar-width:none}
+.pill-row::-webkit-scrollbar{display:none}
+.pill{font-size:12px;font-weight:600;padding:7px 14px;border-radius:50px;background:var(--glass);color:var(--text2);cursor:pointer;white-space:nowrap;border:1px solid transparent;transition:.15s}
+.pill.on{background:var(--teal);color:#03201C;font-weight:800}
+.search{display:flex;align-items:center;gap:10px;background:#131C33;border:1px solid var(--stroke);border-radius:18px;padding:12px 14px;color:var(--text2);margin-bottom:12px}
+.search input{flex:1;background:none;border:none;outline:none;color:var(--text);font-family:var(--font);font-size:13px}
+/* ---------- تایم‌لاین ---------- */
+.tl{display:flex;gap:8px}
+.tl .line{display:flex;flex-direction:column;align-items:center;width:22px}
+.tl .dot{width:18px;height:18px;border-radius:50%;flex-shrink:0}
+.tl .rail{width:2.5px;flex:1;background:linear-gradient(rgba(0,201,177,.35),rgba(0,201,177,.07));min-height:26px}
+/* ---------- نمودار ---------- */
+.chart{display:flex;align-items:flex-end;gap:10px;height:150px;padding:0 4px}
+.chart .col{flex:1;display:flex;flex-direction:column;align-items:center;gap:6px;height:100%;justify-content:flex-end}
+.chart .bar{width:100%;max-width:34px;border-radius:8px;background:linear-gradient(rgba(47,224,200,.95),rgba(0,201,177,.28));position:relative;animation:grow .9s ease;box-shadow:0 0 14px rgba(0,201,177,.25)}
+.chart .bar::before{content:'';position:absolute;top:0;left:0;right:0;height:3.5px;border-radius:3px;background:#6FF0DC}
+@keyframes grow{from{height:0 !important}}
+.chart .lbl{font-size:9.5px;color:var(--text2)}
+/* ---------- صفحه کنار (توضیحات) ---------- */
+.side{max-width:330px}
+.side h1{font-size:26px;font-weight:900;margin-bottom:6px}
+.side p{color:var(--text2);font-size:13.5px;line-height:2;margin-bottom:14px}
+.side .feat{display:flex;gap:10px;align-items:center;padding:10px 0;border-bottom:1px dashed rgba(255,255,255,.1);font-size:13px}
+.side .feat:last-child{border:none}
+.side .feat .fi{width:38px;height:38px;border-radius:12px;background:rgba(0,201,177,.12);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0}
+kbd{background:#1a2440;border:1px solid #2c3a63;border-radius:8px;padding:2px 10px;font-family:var(--font);font-size:12px}
+@media(max-width:900px){.side{display:none}}
+/* toast */
+#toast{position:absolute;bottom:150px;left:50%;transform:translateX(-50%) translateY(20px);background:#131C33;border:1px solid var(--stroke);color:var(--text);padding:11px 18px;border-radius:14px;font-size:12.5px;opacity:0;pointer-events:none;transition:.3s;z-index:80;white-space:nowrap;box-shadow:0 10px 30px rgba(0,0,0,.5)}
+#toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+.backbtn{width:38px;height:38px;border-radius:50%;background:var(--glass);border:1px solid var(--stroke);color:var(--text);display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:17px;flex-shrink:0}
+</style>
+</head>
+<body>
+
+<div class="side">
+  <h1>آتیران همراه 👋</h1>
+  <p>این یک <b>پیش‌نمایش تعاملی زنده</b> از طراحی اپ اندروید است — دقیقاً همان کد، رنگ‌ها، منو و دکمه‌های سه‌بعدی که در پروژه
+  <kbd>AtiranHamrahAndroid</kbd> با Kotlin و Jetpack Compose پیاده‌سازی شده‌اند. روی آیتم‌ها کلیک و لمس کنید!</p>
+  <div class="feat"><div class="fi">🧩</div><div><b>منوی کاشی‌های سه‌بعدی</b> — چهار گروه، دوازده بخش، هاله نور و قاب براق</div></div>
+  <div class="feat"><div class="fi">🔘</div><div><b>دکمه‌های سه‌بعدی اختصاصی</b> — عمق واقعی؛ با فشردن فرو می‌روند</div></div>
+  <div class="feat"><div class="fi">✨</div><div><b>پس‌زمینه شفق آرام</b> + شمارنده‌ها و نمودارهای متحرک</div></div>
+  <div class="feat"><div class="fi">🌐</div><div><b>اتصال به سرویس WCF موجود</b> + حالت آفلاین با صف همگام‌سازی</div></div>
+  <div class="feat"><div class="fi">📅</div><div><b>فارسی کامل</b> — تقویم شمسی، اعداد فارسی، فونت وزیرمتن</div></div>
+  <div class="feat"><div class="fi">📱</div><div>ساخت APK: <kbd>./gradlew assembleDebug</kbd></div></div>
+</div>
+
+<div class="phone">
+  <div class="notch"></div>
+  <div class="statusbar"><span id="clock">۹:۴۱</span><span>۴G ▮▮▮ 🔋۸۶٪</span></div>
+
+  <!-- اسپلش -->
+  <div id="splash">
+    <img class="logo" src="../AtiranHamrahAndroid/app/src/main/res/drawable-nodpi/app_logo.png" alt="آتیران همراه">
+    <div style="margin-top:22px;font-size:28px;font-weight:900">آتیران همراه</div>
+    <div style="margin-top:6px;font-size:13px;color:var(--text2)">همراه هوشمند فروش و ویزیت</div>
+    <div class="dots"><i></i><i></i><i></i></div>
+  </div>
+
+  <div class="screen">
+    <div class="aurora"></div>
+
+    <!-- ============ ورود ============ -->
+    <div class="page" id="pg-login">
+      <div style="height:56px"></div>
+      <div style="text-align:center">
+        <img src="../AtiranHamrahAndroid/app/src/main/res/drawable-nodpi/app_logo.png" style="width:96px;height:96px;border-radius:26px;box-shadow:0 0 50px rgba(0,201,177,.3)">
+        <div style="font-size:24px;font-weight:900;margin-top:14px">آتیران همراه</div>
+        <div class="sub" style="margin-top:4px">ورود ویزیتور به سامانه فروش</div>
+      </div>
+      <div class="card" style="margin-top:26px">
+        <div class="h2" style="margin-bottom:14px">ورود به حساب</div>
+        <div class="search"><span>👤</span><input id="li-user" placeholder="نام کاربری" value="m.rezaei"></div>
+        <div style="height:10px"></div>
+        <div class="search"><span>🔒</span><input id="li-pass" type="password" placeholder="رمز عبور" value="1234"></div>
+        <div style="height:18px"></div>
+        <button class="btn3d" onclick="login()">✔️ ورود به سامانه</button>
+        <div style="height:12px"></div>
+        <button class="btn3d ghost" onclick="login()">ورود نمایشی (بدون سرور)</button>
+      </div>
+      <div style="text-align:center;margin-top:18px"><span class="chip gold">حالت نمایشی فعال</span></div>
+    </div>
+
+    <!-- ============ خانه ============ -->
+    <div class="page" id="pg-home">
+      <div class="h-row" style="margin-top:2px">
+        <div class="avatar gold">مر</div>
+        <div style="flex:1">
+          <div style="font-weight:800;font-size:15px">عصر بخیر، مهدی رضایی</div>
+          <div class="sub">شنبه ۱۵ شهریور ۱۴۰۵</div>
+        </div>
+        <div class="backbtn" style="font-size:19px" onclick="go('messages')">🔔<span style="position:absolute;transform:translate(14px,-12px);background:var(--danger);width:8px;height:8px;border-radius:50%"></span></div>
+      </div>
+
+      <!-- کارت قهرمان -->
+      <div class="card" style="margin-top:14px;padding:18px;display:flex;align-items:center;gap:12px">
+        <div style="flex:1;min-width:0">
+          <div class="sub">📈 فروش امروز شما</div>
+          <div id="hero-money" class="money" style="font-size:23px;font-weight:900;margin:8px 0 12px">۰ تومان</div>
+          <div style="height:10px;border-radius:50px;background:rgba(255,255,255,.1);overflow:hidden">
+            <div style="width:0%;height:100%;border-radius:50px;background:linear-gradient(90deg,#2FE0C8,#FFC94A);box-shadow:0 0 12px rgba(0,201,177,.5)" id="hero-bar"></div>
+          </div>
+          <div class="sub" style="margin-top:8px">هدف روزانه: ۳۵٬۰۰۰٬۰۰۰ تومان (۸۶٪ محقق‌شده)</div>
+        </div>
+        <div class="orb">
+          <svg width="86" height="86" viewBox="0 0 86 86">
+            <circle cx="43" cy="43" r="38" fill="none" stroke="rgba(255,255,255,.12)" stroke-width="9"/>
+            <circle class="ring-anim" style="--off:33" cx="43" cy="43" r="38" fill="none" stroke="url(#g1)" stroke-width="9" stroke-linecap="round"/>
+            <defs><linearGradient id="g1"><stop offset="0" stop-color="#2FE0C8"/><stop offset="1" stop-color="#00C9B1"/></linearGradient></defs>
+          </svg>
+          <div class="ctr"><b style="font-size:16px">۸۶٪</b><span class="sub" style="font-size:9.5px">از هدف</span></div>
+        </div>
+      </div>
+
+      <!-- آمار سریع -->
+      <div style="display:flex;gap:10px;margin-top:12px">
+        <div class="card" style="flex:1;padding:11px 8px;text-align:center"><div style="font-size:17px">🧾</div><div style="font-weight:800;font-size:13px;margin-top:5px">۲</div><div class="sub" style="font-size:9.5px">فاکتور امروز</div></div>
+        <div class="card" style="flex:1;padding:11px 8px;text-align:center"><div style="font-size:17px">✅</div><div style="font-weight:800;font-size:13px;margin-top:5px">۲ از ۸</div><div class="sub" style="font-size:9.5px">ویزیت انجام‌شده</div></div>
+        <div class="card" style="flex:1;padding:11px 8px;text-align:center"><div style="font-size:17px">💳</div><div style="font-weight:800;font-size:13px;margin-top:5px">۲۵.۵ م</div><div class="sub" style="font-size:9.5px">وصولی امروز</div></div>
+      </div>
+
+      <!-- دکمه‌های سه‌بعدی -->
+      <div style="display:flex;gap:12px;margin-top:16px">
+        <button class="btn3d gold" style="height:52px;font-size:13.5px" onclick="go('new-invoice')">🛒 فاکتور جدید</button>
+        <button class="btn3d" style="height:52px;font-size:13.5px" onclick="go('visits')">📍 شروع ویزیت</button>
+      </div>
+
+      <div class="section"><div class="bar"></div><div class="title">دسترسی سریع</div><div class="more" onclick="go('more')">منوی کامل ›</div></div>
+      <div class="grid2" id="home-grid"></div>
+
+      <div class="section"><div class="bar"></div><div class="title">چک‌های در جریان وصول</div></div>
+      <div class="card" id="home-checks"></div>
+    </div>
+
+    <!-- ============ مشتریان ============ -->
+    <div class="page" id="pg-customers">
+      <div class="h-row" style="margin-top:2px"><div class="h1">مشتریان</div><span class="chip teal">۱۴ مشتری</span><div style="flex:1"></div><div class="backbtn" style="background:var(--teal);color:#03201C;border:none" onclick="toast('در اپ اندروید: فرم ثبت مشتری جدید')">＋</div></div>
+      <div style="height:12px"></div>
+      <div class="search"><span>🔍</span><input id="cq" placeholder="جستجوی نام یا کد مشتری..." oninput="renderCustomers()"></div>
+      <div class="pill-row">
+        <div class="pill on" onclick="pick(this,'cf','همه')">همه</div><div class="pill" onclick="pick(this,'cf','بدهکار')">بدهکار</div>
+        <div class="pill" onclick="pick(this,'cf','لیست سیاه')">لیست سیاه</div><div class="pill" onclick="pick(this,'cf','فقط نقدی')">فقط نقدی</div>
+      </div>
+      <div style="height:12px"></div>
+      <div id="customers-list" style="display:flex;flex-direction:column;gap:10px"></div>
+    </div>
+
+    <!-- ============ پرونده مشتری ============ -->
+    <div class="page" id="pg-customer">
+      <div class="h-row"><div class="backbtn" onclick="go('customers')">›</div><div class="h2">پرونده مشتری</div></div>
+      <div class="card" style="margin-top:8px" id="cust-head"></div>
+      <div style="display:flex;gap:8px;margin:14px 0">
+        <div class="pill-row" style="flex:1">
+          <div class="pill on" onclick="pick(this,'ct','خلاصه');custTab('خلاصه')">خلاصه</div>
+          <div class="pill" onclick="pick(this,'ct','فاکتورها');custTab('فاکتورها')">فاکتورها</div>
+          <div class="pill" onclick="pick(this,'ct','چک‌ها');custTab('چک‌ها')">چک‌ها</div>
+        </div>
+      </div>
+      <div id="cust-body" style="display:flex;flex-direction:column;gap:10px"></div>
+    </div>
+
+    <!-- ============ فاکتورها ============ -->
+    <div class="page" id="pg-invoices">
+      <div class="h-row" style="margin-top:2px"><div class="h1">فاکتورها</div><div style="flex:1"></div><span class="chip teal">۱۰ سند</span></div>
+      <div class="card" style="margin-top:12px;display:flex;justify-content:space-between;align-items:center;padding:14px 16px">
+        <div><div class="sub">مجموع فروش</div><div style="color:var(--teal);font-weight:800;font-size:14px" class="money">۱۴۶٬۲۶۵٬۰۰۰</div></div>
+        <div style="width:1px;height:30px;background:var(--stroke)"></div>
+        <div><div class="sub">مانده مطالبات</div><div style="color:var(--danger);font-weight:800;font-size:14px" class="money">۳۰٬۱۱۰٬۰۰۰</div></div>
+      </div>
+      <div style="height:12px"></div>
+      <div class="pill-row">
+        <div class="pill on" onclick="pick(this,'if','همه');renderInvoices()">همه</div>
+        <div class="pill" onclick="pick(this,'if','تسویه‌نشده');renderInvoices()">تسویه‌نشده</div>
+        <div class="pill" onclick="pick(this,'if','پیش‌فاکتور');renderInvoices()">پیش‌فاکتور</div>
+      </div>
+      <div style="height:12px"></div>
+      <div id="invoices-list" style="display:flex;flex-direction:column;gap:10px"></div>
+    </div>
+
+    <!-- ============ فاکتور جدید ============ -->
+    <div class="page" id="pg-new-invoice">
+      <div class="h-row"><div class="backbtn" onclick="go('home')">›</div><div class="h2">ثبت فاکتور جدید</div><div style="flex:1"></div><span class="chip gold" style="cursor:pointer" id="ni-type" onclick="togglePre()">فاکتور قطعی</span></div>
+      <div class="card" style="margin-top:10px;display:flex;align-items:center;gap:10px">
+        <span style="font-size:20px">🏪</span>
+        <div style="flex:1"><b style="font-size:13px">هایپرمارکت رفاه - تهرانپارس</b><div class="sub" style="font-size:10.5px">اعتبار: ۲۵۰٬۰۰۰٬۰۰۰ • مانده: ۴۸٬۵۰۰٬۰۰۰</div></div>
+        <span style="color:var(--danger);cursor:pointer" onclick="go('new-invoice')">✕</span>
+      </div>
+      <div style="height:12px"></div>
+      <div class="search"><span>🔍</span><input id="kq" placeholder="جستجوی کالا برای افزودن..." oninput="renderKalas()"></div>
+      <div id="kala-list" style="display:flex;flex-direction:column;gap:8px"></div>
+      <div class="section"><div class="bar"></div><div class="title" id="cart-title">سبد سفارش (۰ کالا)</div></div>
+      <div id="cart-list" style="display:flex;flex-direction:column;gap:8px"></div>
+      <div id="cart-summary" style="display:none"></div>
+    </div>
+
+    <!-- ============ کالا و انبار ============ -->
+    <div class="page" id="pg-products">
+      <div class="h-row" style="margin-top:2px"><div class="h1">کالا و انبار</div><div style="flex:1"></div><span class="chip red">۳ کالای کم‌موجود</span></div>
+      <div class="card" style="margin-top:12px;display:flex;justify-content:space-around;text-align:center;padding:12px 8px">
+        <div><div class="sub">تعداد اقلام</div><div style="color:var(--teal);font-weight:900;font-size:16px">۱۸</div></div>
+        <div><div class="sub">گروه‌ها</div><div style="color:var(--teal);font-weight:900;font-size:16px">۵</div></div>
+        <div><div class="sub">ارزش موجودی</div><div style="color:var(--gold);font-weight:900;font-size:13px">۱ میلیارد ت</div></div>
+      </div>
+      <div style="height:12px"></div>
+      <div class="search"><span>🔍</span><input id="pq" placeholder="جستجوی نام یا کد کالا..." oninput="renderProducts()"></div>
+      <div id="products-list" style="display:flex;flex-direction:column;gap:10px"></div>
+    </div>
+
+    <!-- ============ چک‌ها ============ -->
+    <div class="page" id="pg-checks">
+      <div class="h-row" style="margin-top:2px"><div class="h1">چک‌ها</div><div style="flex:1"></div><span class="chip red">۱ برگشتی</span></div>
+      <div class="card" style="margin-top:12px">
+        <div style="display:flex;justify-content:space-between;padding:5px 2px"><span class="sub">ارزش چک‌های در جیب</span><b style="color:var(--teal)">۴۸٬۲۵۰٬۰۰۰</b></div>
+        <div style="display:flex;justify-content:space-between;padding:5px 2px"><span class="sub">کل چک‌های در جریان</span><b style="color:var(--success)">۵۶٬۲۵۰٬۰۰۰</b></div>
+      </div>
+      <div style="height:12px"></div>
+      <div class="pill-row">
+        <div class="pill on" onclick="pick(this,'chf','همه');renderChecks()">همه</div>
+        <div class="pill" onclick="pick(this,'chf','در جیب');renderChecks()">در جیب</div>
+        <div class="pill" onclick="pick(this,'chf','برگشتی');renderChecks()">برگشتی</div>
+        <div class="pill" onclick="pick(this,'chf','وصول‌شده');renderChecks()">وصول‌شده</div>
+      </div>
+      <div style="height:12px"></div>
+      <div id="checks-list" style="display:flex;flex-direction:column;gap:10px"></div>
+    </div>
+
+    <!-- ============ مسیر و ویزیت ============ -->
+    <div class="page" id="pg-visits">
+      <div class="h-row" style="margin-top:2px"><div class="h1">مسیر و ویزیت امروز</div></div>
+      <div class="card" style="margin-top:12px;display:flex;align-items:center;gap:14px">
+        <div style="flex:1">
+          <div class="sub">🛣️ پیشرفت مسیر امروز</div>
+          <div style="font-weight:900;font-size:17px;margin:7px 0">۲ از ۸ توقف انجام‌شده</div>
+          <div class="sub">ایستگاه بعدی: سوپرمارکت آرمان</div>
+        </div>
+        <div class="orb" style="width:78px;height:78px">
+          <svg width="78" height="78" viewBox="0 0 78 78">
+            <circle cx="39" cy="39" r="33" fill="none" stroke="rgba(255,255,255,.12)" stroke-width="8"/>
+            <circle class="ring-anim" style="--off:186" cx="39" cy="39" r="33" fill="none" stroke="#2FE0C8" stroke-width="8" stroke-linecap="round"/>
+          </svg>
+          <div class="ctr"><b>۲۵٪</b></div>
+        </div>
+      </div>
+      <div style="height:14px"></div>
+      <div id="visits-list" style="display:flex;flex-direction:column;gap:4px"></div>
+    </div>
+
+    <!-- ============ پیام‌ها ============ -->
+    <div class="page" id="pg-messages">
+      <div class="h-row" style="margin-top:2px"><div class="h1">پیام‌ها</div><div style="flex:1"></div><span class="chip red">۲ خوانده‌نشده</span></div>
+      <div style="height:12px"></div>
+      <div id="messages-list" style="display:flex;flex-direction:column;gap:10px"></div>
+    </div>
+
+    <!-- ============ پیش‌دریافت ============ -->
+    <div class="page" id="pg-prepayments">
+      <div class="h-row" style="margin-top:2px"><div class="h1">پیش‌دریافت‌ها</div><div style="flex:1"></div><span class="chip gold" style="cursor:pointer" onclick="toast('در اپ اندروید: فرم ثبت پیش‌دریافت (نقدی/کارت‌خوان/چک)')">＋ ثبت جدید</span></div>
+      <div class="card" style="margin-top:12px;display:flex;justify-content:space-between;align-items:center">
+        <div><div class="sub">جمع دریافتی‌های ثبت‌شده</div><div style="color:var(--success);font-weight:900;font-size:16px" class="money">۶۰٬۵۶۰٬۰۰۰</div></div>
+      </div>
+      <div style="height:12px"></div>
+      <div id="prepay-list" style="display:flex;flex-direction:column;gap:10px"></div>
+    </div>
+
+    <!-- ============ گزارش‌ها ============ -->
+    <div class="page" id="pg-reports">
+      <div class="h-row" style="margin-top:2px"><div class="h1">گزارش‌ها</div><div style="flex:1"></div><span class="chip teal">۷ روز اخیر</span></div>
+      <div class="card" style="margin-top:14px">
+        <div class="h2">📈 روند فروش هفتگی</div>
+        <div class="chart" style="margin-top:14px">
+          <div class="col"><div class="bar" style="height:90%"></div><div class="lbl">امروز</div></div>
+          <div class="col"><div class="bar" style="height:100%"></div><div class="lbl">دیروز</div></div>
+          <div class="col"><div class="bar" style="height:83%"></div><div class="lbl">۲ روز</div></div>
+          <div class="col"><div class="bar" style="height:52%"></div><div class="lbl">۳ روز</div></div>
+          <div class="col"><div class="bar" style="height:24%"></div><div class="lbl">۴ روز</div></div>
+          <div class="col"><div class="bar" style="height:13%"></div><div class="lbl">۵ روز</div></div>
+          <div class="col"><div class="bar" style="height:69%"></div><div class="lbl">۶ روز</div></div>
+        </div>
+      </div>
+      <div style="display:flex;gap:10px;margin-top:14px">
+        <div class="card" style="flex:1;text-align:center;padding:14px 8px"><div>📈</div><div style="font-weight:800;font-size:13px;margin-top:5px">۱۵٬۱۸۰٬۰۰۰</div><div class="sub" style="font-size:10px">میانگین سبد خرید</div></div>
+        <div class="card" style="flex:1;text-align:center;padding:14px 8px"><div>🏆</div><div style="font-weight:800;font-size:13px;margin-top:5px">۱۰ سند</div><div class="sub" style="font-size:10px">مجموع اسناد فروش</div></div>
+      </div>
+      <div class="card" style="margin-top:14px;display:flex;align-items:center;gap:12px">
+        <div class="avatar gold">🏆</div>
+        <div style="flex:1"><div class="sub">مشتری برتر هفته</div><b style="font-size:14px">هایپرمارکت رفاه - تهرانپارس</b></div>
+        <b style="color:var(--gold);font-size:13px">۴۲٬۸۷۵٬۰۰۰</b>
+      </div>
+      <div class="section"><div class="bar"></div><div class="title">صف همگام‌سازی با سرور</div></div>
+      <div class="card" style="display:flex;align-items:center;gap:10px">☁️ همه عملیات‌ها با سرور همگام شده‌اند</div>
+    </div>
+
+    <!-- ============ منوی کامل ============ -->
+    <div class="page" id="pg-more">
+      <div class="h-row" style="margin-top:2px">
+        <div><div class="h1">منوی کامل</div><div class="sub">همه امکانات آتیران همراه در یک نگاه</div></div>
+      </div>
+      <div id="more-menu"></div>
+    </div>
+
+    <!-- ============ تنظیمات ============ -->
+    <div class="page" id="pg-settings">
+      <div class="h-row" style="margin-top:2px"><div class="h1">تنظیمات</div></div>
+      <div class="card" style="margin-top:14px">
+        <div class="h-row" style="margin-bottom:4px"><span>🖥️</span><div class="h2" style="flex:1;font-size:13.5px">اتصال به سرور آتیران (WCF)</div><span class="chip gold">نمایشی</span></div>
+        <div class="sub" style="margin-bottom:10px;line-height:1.9">نشانی سرویس LocalServices را وارد کنید؛ مثال:<br><code style="color:var(--teal)">http://192.168.1.10/AtiranLocalServices/LocalServices.svc</code></div>
+        <div class="search"><span>🌐</span><input id="srv-url" placeholder="http://..."></div>
+        <div style="height:10px"></div>
+        <button class="btn3d" style="height:48px;font-size:13px" onclick="toast('در اپ واقعی: ذخیره و بررسی اتصال به WCF')">☁️ ذخیره و بررسی اتصال</button>
+      </div>
+      <div class="card" style="margin-top:12px;display:flex;align-items:center;gap:10px">
+        <div style="flex:1"><b style="font-size:13px">حالت نمایشی (بدون سرور)</b><div class="sub" style="font-size:10.5px">با داده نمونه کار می‌کنید؛ ثبت‌ها به صف همگام‌سازی می‌روند</div></div>
+        <div onclick="this.firstElementChild.classList.toggle('on');this.firstElementChild.style.justifyContent=this.firstElementChild.classList.contains('on')?'flex-end':'flex-start';this.firstElementChild.style.background=this.firstElementChild.classList.contains('on')?'var(--teal)':'rgba(255,255,255,.15)'" style="cursor:pointer"><div style="width:44px;height:26px;border-radius:50px;background:var(--teal);display:flex;justify-content:flex-end;align-items:center;padding:3px;transition:.2s"><div style="width:20px;height:20px;border-radius:50%;background:#fff"></div></div></div>
+      </div>
+      <div class="card" style="margin-top:12px;display:flex;align-items:center;gap:10px">
+        <div style="flex:1"><b style="font-size:13px">🎨 تم تیره</b><div class="sub" style="font-size:10.5px">پس‌زمینه فضایی با فیروزه‌ای و طلایی</div></div>
+        <div onclick="this.firstElementChild.classList.toggle('on');this.firstElementChild.style.justifyContent=this.firstElementChild.classList.contains('on')?'flex-end':'flex-start';this.firstElementChild.style.background=this.firstElementChild.classList.contains('on')?'var(--teal)':'rgba(255,255,255,.15)'" style="cursor:pointer"><div style="width:44px;height:26px;border-radius:50px;background:var(--teal);display:flex;justify-content:flex-end;align-items:center;padding:3px;transition:.2s"><div style="width:20px;height:20px;border-radius:50%;background:#fff"></div></div></div>
+      </div>
+      <div style="height:16px"></div>
+      <button class="btn3d danger" style="height:50px" onclick="go('login')">🚪 خروج از حساب کاربری</button>
+    </div>
+
+    <!-- ============ درباره ============ -->
+    <div class="page" id="pg-about">
+      <div class="h-row" style="margin-top:2px"><div class="backbtn" onclick="go('settings')">›</div><div class="h2">درباره برنامه</div></div>
+      <div style="text-align:center;margin-top:18px">
+        <img src="../AtiranHamrahAndroid/app/src/main/res/drawable-nodpi/app_logo.png" style="width:110px;height:110px;border-radius:28px;box-shadow:0 0 60px rgba(0,201,177,.35)">
+        <div style="font-size:22px;font-weight:900;margin-top:14px">آتیران همراه</div>
+        <div class="sub" style="margin-top:4px">همراه هوشمند فروش، ویزیت و وصول</div>
+        <div style="margin-top:10px"><span class="chip teal">نسخه ۱.۰.۰</span></div>
+      </div>
+      <div style="height:20px"></div>
+      <div class="card" style="display:flex;gap:12px;align-items:center"><div class="avatar" style="background:rgba(0,201,177,.15);color:var(--teal)">📱</div><div><b style="font-size:13px">نسخه اندروید بومی</b><div class="sub" style="font-size:11px">بازنویسی کامل با Kotlin و Jetpack Compose</div></div></div>
+      <div style="height:10px"></div>
+      <div class="card" style="display:flex;gap:12px;align-items:center"><div class="avatar" style="background:rgba(0,201,177,.15);color:var(--teal)">🗄️</div><div><b style="font-size:13px">اتصال به سامانه موجود</b><div class="sub" style="font-size:11px">سازگار با سرویس WCF و پایگاه sac</div></div></div>
+      <div style="height:10px"></div>
+      <div class="card" style="display:flex;gap:12px;align-items:center"><div class="avatar" style="background:rgba(0,201,177,.15);color:var(--teal)">🛠️</div><div><b style="font-size:13px">کار آفلاین</b><div class="sub" style="font-size:11px">ثبت بدون اینترنت + صف همگام‌سازی هنگام اتصال</div></div></div>
+    </div>
+  </div>
+
+  <!-- داک -->
+  <div class="dock-wrap">
+    <button class="fab" onclick="go('new-invoice')"><span class="plus">＋</span>فاکتور</button>
+    <div class="dock">
+      <div class="item on" data-r="home" onclick="go('home')"><div class="icw">🏠</div>خانه</div>
+      <div class="item" data-r="customers" onclick="go('customers')"><div class="icw">👥</div>مشتریان</div>
+      <div class="gap"></div>
+      <div class="item" data-r="invoices" onclick="go('invoices')"><div class="icw">🧾</div>فاکتورها</div>
+      <div class="item" data-r="more" onclick="go('more')"><div class="icw">📖</div>بیشتر</div>
+    </div>
+  </div>
+  <div id="toast"></div>
+</div>
+
+<script>
+/* ================= داده‌های نمایشی (همان DemoStore اپ اندروید) ================= */
+const customers=[
+ {shmo:2001,name:'هایپرمارکت رفاه - تهرانپارس',group:'زنجیره‌ای',man:48500000,cred:250000000,cell:'۰۹۱۲۱۱۱۲۲۳۳',addr:'تهرانپارس، فلکه دوم، پلاک ۱۲',day:'شنبه',black:false,cash:false},
+ {shmo:2002,name:'فروشگاه زنجیره‌ای افق کوروش',group:'زنجیره‌ای',man:12400000,cred:180000000,cell:'۰۹۱۲۲۲۲۳۳۴۴',addr:'خیابان ۱۵ خرداد',day:'شنبه',black:false,cash:false},
+ {shmo:2003,name:'سوپرمارکت آرمان',group:'خرده‌فروشی',man:8900000,cred:45000000,cell:'۰۹۱۲۳۳۳۴۴۵۵',addr:'خیابان انقلاب، جنب پارک لاله',day:'یکشنبه',black:false,cash:false},
+ {shmo:2004,name:'خواربار عمید',group:'خرده‌فروشی',man:3200000,cred:30000000,cell:'۰۹۱۲۴۴۴۵۵۶۶',addr:'خیابان آزادی',day:'یکشنبه',black:false,cash:false},
+ {shmo:2005,name:'فروشگاه سحرخیز ناصر',group:'سوپرمارکت',man:15700000,cred:60000000,cell:'۰۹۱۲۵۵۵۶۶۷۷',addr:'میدان حسن‌آباد',day:'دوشنبه',black:true,cash:false},
+ {shmo:2006,name:'رستوران سنتی باغ ایرانی',group:'صنایع غذایی',man:26800000,cred:120000000,cell:'۰۹۱۲۶۶۶۷۷۸۸',addr:'بلوار کشاورز، پلاک ۸۵',day:'دوشنبه',black:false,cash:true},
+ {shmo:2007,name:'قهوه‌خانه مدرن لمیز',group:'کافه',man:1450000,cred:35000000,cell:'۰۹۱۲۷۷۷۸۸۹۹',addr:'خیابان کریمخان',day:'سه‌شنبه',black:false,cash:false},
+ {shmo:2008,name:'فروشگاه به‌سوی سلامتی',group:'سوپرمارکت',man:0,cred:90000000,cell:'۰۹۱۲۸۸۸۹۹۱۰',addr:'سعادت‌آباد، میدان کاج',day:'سه‌شنبه',black:false,cash:false},
+ {shmo:2009,name:'مجتمع تجاری گلستان',group:'زنجیره‌ای',man:62300000,cred:200000000,cell:'۰۹۱۲۹۹۹۰۰۱۱',addr:'جردن، بلوار گلشهر',day:'چهارشنبه',black:false,cash:false},
+ {shmo:2010,name:'سوپرمارکت مهرگان',group:'سوپرمارکت',man:5600000,cred:40000000,cell:'۰۹۱۲۱۰۹۸۷۶۵',addr:'پونک، بولیوار',day:'چهارشنبه',black:false,cash:false},
+ {shmo:2011,name:'فروشگاه خداوند',group:'خرده‌فروشی',man:910000,cred:25000000,cell:'۰۹۱۲۱۲۱۲۱۲۱',addr:'شهر ری، میدان معلم',day:'پنجشنبه',black:false,cash:false},
+ {shmo:2012,name:'آشپزخانه صنعتی نیک‌پخت',group:'صنایع غذایی',man:18200000,cred:150000000,cell:'۰۹۱۲۱۳۱۳۱۳۱۳',addr:'شمس‌آباد، قطعه ۳',day:'پنجشنبه',black:false,cash:false},
+ {shmo:2013,name:'میوه‌فروشی باران',group:'خرده‌فروشی',man:2150000,cred:20000000,cell:'۰۹۱۲۱۴۱۴۱۴۱۴',addr:'شریعتی، بالاتر از قوه',day:'جمعه',black:false,cash:false},
+ {shmo:2014,name:'فروشگاه زنجیره‌ای یاس',group:'زنجیره‌ای',man:34900000,cred:75000000,cell:'۰۹۱۲۱۵۱۵۱۵۱۵',addr:'افسریه، گلستان',day:'جمعه',black:false,cash:false},
+];
+const kalas=[
+ {shka:10001,name:'نوشابه خانواده ۱.۵ لیتری',code:'NB-1500',group:'نوشیدنی',unit:'شیشه',price:26500,stock:480,reo:100,anbar:'انبار مرکزی'},
+ {shka:10002,name:'آب معدنی بسته ۶ عددی',code:'AM-006',group:'نوشیدنی',unit:'بسته',price:42000,stock:260,reo:80,anbar:'انبار مرکزی'},
+ {shka:10003,name:'دوغ محلی ۱ لیتری',code:'DG-100',group:'لبنیات',unit:'پاکت',price:18000,stock:145,reo:60,anbar:'سردخانه'},
+ {shka:10004,name:'شیر کم‌چرب پاستوریزه',code:'SH-101',group:'لبنیات',unit:'پاکت',price:21500,stock:92,reo:120,anbar:'سردخانه'},
+ {shka:10005,name:'ماست پرچرب ۹۰۰ گرمی',code:'MS-900',group:'لبنیات',unit:'ظرف',price:34000,stock:38,reo:50,anbar:'سردخانه'},
+ {shka:10006,name:'پنیر لیقوان ۴۰۰ گرمی',code:'PN-400',group:'لبنیات',unit:'بسته',price:96000,stock:24,reo:20,anbar:'سردخانه'},
+ {shka:10007,name:'چیپس سیب‌زمینی کلاسیک',code:'CP-050',group:'تنقلات',unit:'بسته',price:12000,stock:640,reo:150,anbar:'انبار مرکزی'},
+ {shka:10008,name:'پفک نمکی بسته خانواده',code:'PF-200',group:'تنقلات',unit:'بسته',price:15500,stock:310,reo:100,anbar:'انبار مرکزی'},
+ {shka:10009,name:'پاپ‌کورن کره‌ای',code:'PP-100',group:'تنقلات',unit:'بسته',price:14000,stock:18,reo:60,anbar:'انبار مرکزی'},
+ {shka:10010,name:'سوسیس کوکتل ۵۰۰ گرمی',code:'SS-500',group:'مواد پروتئینی',unit:'بسته',price:68000,stock:46,reo:30,anbar:'سردخانه'},
+ {shka:10011,name:'کالباس ۹۰٪ گوشت',code:'KB-400',group:'مواد پروتئینی',unit:'بسته',price:84000,stock:12,reo:25,anbar:'سردخانه'},
+ {shka:10012,name:'مایع ظرفشویی ۳.۵ لیتری',code:'MF-350',group:'شوینده',unit:'گالن',price:58000,stock:84,reo:40,anbar:'انبار مرکزی'},
+ {shka:10013,name:'پودر لباسشویی ۴.۵ کیلویی',code:'PD-450',group:'شوینده',unit:'پاکت',price:118000,stock:55,reo:20,anbar:'انبار مرکزی'},
+ {shka:10014,name:'جواب ظرف خیارشور ۹۰۰ گرمی',code:'JW-900',group:'تنقلات',unit:'شیشه',price:26000,stock:130,reo:40,anbar:'انبار مرکزی'},
+ {shka:10015,name:'رب گوجه فرنگی ۸۰۰ گرمی',code:'RB-800',group:'تنقلات',unit:'قوطی',price:44000,stock:220,reo:70,anbar:'انبار مرکزی'},
+ {shka:10016,name:'چای کیسه‌ای ۱۰۰ عددی',code:'CH-100',group:'نوشیدنی',unit:'جعبه',price:39000,stock:95,reo:60,anbar:'انبار مرکزی'},
+ {shka:10017,name:'شیرین‌عسلی تن ماهی',code:'TM-120',group:'مواد پروتئینی',unit:'قوطی',price:52000,stock:7,reo:30,anbar:'انبار مرکزی'},
+ {shka:10018,name:'دستمال کاغذی ۳۰۰ برگ',code:'DK-300',group:'شوینده',unit:'بسته',price:22000,stock:350,reo:90,anbar:'انبار مرکزی'},
+];
+const invoices=[
+ {no:90211,c:2001,date:'۱۴۰۵/۰۶/۱۵',time:'۱۰:۱۵',total:19800000,paid:15000000,pre:false,pending:false,lines:3},
+ {no:90210,c:2008,date:'۱۴۰۵/۰۶/۱۵',time:'۰۹:۳۰',total:10560000,paid:10560000,pre:false,pending:false,lines:3},
+ {no:90208,c:2009,date:'۱۴۰۵/۰۶/۱۴',time:'۱۱:۴۵',total:26400000,paid:12000000,pre:false,pending:true,lines:3},
+ {no:90206,c:2003,date:'۱۴۰۵/۰۶/۱۴',time:'۰۹:۱۰',total:6050000,paid:3000000,pre:false,pending:false,lines:2},
+ {no:90204,c:2006,date:'۱۴۰۵/۰۶/۱۳',time:'۱۶:۲۰',total:12960000,paid:12960000,pre:false,pending:false,lines:2},
+ {no:90202,c:2012,date:'۱۴۰۵/۰۶/۱۳',time:'۱۰:۰۰',total:15950000,paid:5000000,pre:true,pending:true,lines:3},
+ {no:90199,c:2002,date:'۱۴۰۵/۰۶/۱۲',time:'۱۳:۳۰',total:17600000,paid:17600000,pre:false,pending:false,lines:4},
+ {no:90195,c:2010,date:'۱۴۰۵/۰۶/۱۱',time:'۱۷:۰۰',total:7910000,paid:0,pre:true,pending:true,lines:3},
+ {no:90190,c:2005,date:'۱۴۰۵/۰۶/۱۰',time:'۱۱:۱۵',total:4350000,paid:4350000,pre:false,pending:false,lines:2},
+ {no:90188,c:2001,date:'۱۴۰۵/۰۶/۰۹',time:'۰۹:۵۰',total:23075000,paid:20000000,pre:false,pending:false,lines:4},
+];
+const checks=[
+ {rdf:5001,c:2009,bank:'بانک ملی ایران',shobe:'شعبه گاندی',no:'۴۵۲۱۰۹۸',mab:18000000,due:'۱۴۰۵/۰۶/۱۸',st:'در جیب'},
+ {rdf:5002,c:2001,bank:'بانک صادرات',shobe:'تهرانپارس',no:'۷۷۸۸۹۹',mab:8500000,due:'۱۴۰۵/۰۶/۲۴',st:'در جیب'},
+ {rdf:5003,c:2014,bank:'بانک تجارت',shobe:'افسریه',no:'۱۲۰۹۴۵',mab:12000000,due:'۱۴۰۵/۰۶/۲۹',st:'به بانک سپرده‌شده'},
+ {rdf:5004,c:2005,bank:'بانک پاسارگاد',shobe:'حسن‌آباد',no:'۹۰۹۸۱۲',mab:5400000,due:'۱۴۰۵/۰۶/۱۳',st:'برگشتی'},
+ {rdf:5005,c:2003,bank:'بانک سامان',shobe:'انقلاب',no:'۳۳۴۵۶۷',mab:3200000,due:'۱۴۰۵/۰۶/۰۵',st:'وصول‌شده'},
+ {rdf:5006,c:2012,bank:'بانک رفاه',shobe:'شمس‌آباد',no:'۵۵۶۶۷۷',mab:9750000,due:'۱۴۰۵/۰۷/۰۵',st:'در جیب'},
+ {rdf:5007,c:2010,bank:'بانک سپه',shobe:'پونک',no:'۸۸۱۲۳۴',mab:2800000,due:'۱۴۰۵/۰۶/۲۱',st:'عودت‌شده'},
+];
+const visits=[
+ {id:7001,c:2001,win:'۸:۰۰ - ۱۰:۰۰',st:'done',note:'سفارش ثبت و تحویل شد'},
+ {id:7002,c:2008,win:'۱۰:۰۰ - ۱۱:۰۰',st:'done'},
+ {id:7003,c:2003,win:'۱۱:۰۰ - ۱۳:۰۰',st:'pending'},
+ {id:7004,c:2009,win:'۱۳:۳۰ - ۱۵:۰۰',st:'pending'},
+ {id:7005,c:2006,win:'۱۵:۰۰ - ۱۶:۳۰',st:'pending'},
+ {id:7006,c:2010,win:'۱۶:۳۰ - ۱۸:۰۰',st:'pending'},
+ {id:7007,c:2012,win:'۱۸:۰۰ - ۱۹:۳۰',st:'pending'},
+ {id:7008,c:2014,win:'۱۹:۳۰ - ۲۱:۰۰',st:'skip',note:'فروشنده گزارش داد فروشگاه تعطیل است'},
+];
+const messages=[
+ {id:101,t:'همه‌گیری نیم‌فصل پیش رو',b:'مدیر محترم فروش، جهت هماهنگی تخفیف‌های نیم‌فصل جلسه‌ای روز یکشنبه ساعت ۹ صبح در سالن کنفرانس برگزار می‌شود. حضور شما الزامی است.',d:'۱۴۰۵/۰۶/۱۵',tm:'۰۸:۱۵',s:'مدیریت فروش',p:'مهم',read:false},
+ {id:102,t:'افزایش قیمت لبنیات از هفته آینده',b:'با توجه به نامه اتحادیه، از ابتدای هفته آینده قیمت محصولات لبنی بین ۴ تا ۷ درصد افزایش می‌یابد. لطفاً پیش‌فاکتورهای در جریان را تکمیل کنید.',d:'۱۴۰۵/۰۶/۱۵',tm:'۰۷:۵۰',s:'واحد بازرگانی',p:'فوری',read:false},
+ {id:103,t:'یادآوری وصول چک',b:'چک شماره ۴۵۲۱۰۹۸ مشتری «مجتمع تجاری گلستان» تا ۳ روز آینده سررسید می‌شود؛ پیگیری وصول را فراموش نکنید.',d:'۱۴۰۵/۰۶/۱۴',tm:'۱۶:۴۰',s:'امور مالی',p:'مهم',read:true},
+ {id:104,t:'کالای جدید در سبد محصولات',b:'سری جدید نوشیدنی‌های کم‌قند به سبد اضافه شد. پوستر معرفی برای همه ویزیتورها در دفتر مرکزی آماده است.',d:'۱۴۰۵/۰۶/۱۳',tm:'۱۱:۲۰',s:'بازاریابی',p:'عادی',read:true},
+ {id:105,t:'گزارش عملکرد هفته گذشته',b:'عملکرد شما در هفته گذشته با ۱۸٪ رشد نسبت به میانگین ماه، تحسین‌برانگیز بود. ادامه مسیر!',d:'۱۴۰۵/۰۶/۱۲',tm:'۰۹:۰۵',s:'سرپرست منطقه',p:'عادی',read:true},
+];
+const prepay=[
+ {id:8001,c:2001,mab:15000000,type:'کارت‌خوان',date:'۱۴۰۵/۰۶/۱۵',note:'پرداخت همراه فاکتور ۹۰۲۱۱'},
+ {id:8002,c:2008,mab:10560000,type:'نقدی',date:'۱۴۰۵/۰۶/۱۵',note:'تسویه کامل فاکتور'},
+ {id:8003,c:2009,mab:12000000,type:'چک',date:'۱۴۰۵/۰۶/۱۴',note:'چک ۴۵۲۱۰۹۸'},
+ {id:8004,c:2003,mab:3000000,type:'نقدی',date:'۱۴۰۵/۰۶/۱۴',note:'علی‌الحساب'},
+ {id:8005,c:2001,mab:20000000,type:'کارت‌خوان',date:'۱۴۰۵/۰۶/۱۳',note:'پیش‌پرداخت شعبه دوم'},
+];
+
+/* ================= ابزار فارسی ================= */
+const fa=s=>String(s).replace(/\d/g,d=>'۰۱۲۳۴۵۶۷۸۹'[d]);
+const money=n=>fa(Math.round(n).toLocaleString('en-US').replace(/,/g,'٬'));
+const cust=id=>customers.find(c=>c.shmo===id);
+const $=id=>document.getElementById(id);
+let state={page:'login',cf:'همه',ct:'خلاصه',if:'همه',chf:'همه',cart:{},pre:false,expanded:null,visitDone:{}};
+
+/* ================= ناوبری ================= */
+const DOCKED=['home','customers','invoices','more'];
+function go(p){
+  document.querySelectorAll('.page').forEach(e=>e.classList.remove('active'));
+  const el=$('pg-'+p); if(el) el.classList.add('active');
+  state.page=p;
+  document.querySelectorAll('.dock .item').forEach(i=>i.classList.toggle('on',i.dataset.r===p));
+  document.querySelector('.dock-wrap').style.display=['home','customers','invoices','products','more'].includes(p)?'block':'none';
+  document.querySelector('.screen').scrollTop=0;
+  if(p==='home') animateHero();
+}
+function pick(el,key,val){ state[key]=val; el.parentElement.querySelectorAll('.pill').forEach(p=>p.classList.remove('on')); el.classList.add('on'); }
+function toast(msg){ const t=$('toast'); t.textContent=msg; t.classList.add('show'); clearTimeout(t._h); t._h=setTimeout(()=>t.classList.remove('show'),2600); }
+function login(){ go('home'); toast('خوش آمدید! در اپ واقعی: POST /Post/LoginY'); }
+
+/* ================= خانه ================= */
+const tiles=[
+ {r:'customers',t:'مشتریان',s:'۱۴ مشتری فعال',i:'👥',g:['#00564C','#003832'],gl:'#00C9B1'},
+ {r:'invoices',t:'فاکتورها',s:'فروش و پیش‌فاکتور',i:'🧾',g:['#123A8A','#0A2255'],gl:'#5B8DEF'},
+ {r:'products',t:'کالا و انبار',s:'قیمت و موجودی',i:'📦',g:['#7A4E00','#4A2E00'],gl:'#FFC94A'},
+ {r:'checks',t:'چک‌ها',s:'۳ چک در جیب',i:'💳',g:['#5C1F6B','#371242'],gl:'#B57BFF'},
+ {r:'visits',t:'مسیر و ویزیت',s:'۶ توقف باقی‌مانده',i:'🛣️',g:['#0E5D4E','#083A31'],gl:'#37D6B5'},
+ {r:'reports',t:'گزارش‌ها',s:'تحلیل فروش',i:'📊',g:['#8A2D5E','#521537'],gl:'#FF7EB3'},
+];
+function tileHTML(t,badge=''){return `<button class="tile" onclick="go('${t.r}')" style="background:linear-gradient(135deg,${t.g[0]},${t.g[1]})">
+ <div class="glow" style="background:radial-gradient(circle,${t.gl},transparent 70%)"></div><div class="sheen"></div>
+ ${badge?`<span class="badge">${badge}</span>`:''}
+ <span class="t">${t.t}</span><span class="s">${t.s}</span><span class="ic">${t.i}</span></button>`}
+$('home-grid').innerHTML=tiles.map(t=>tileHTML(t)).join('');
+$('home-checks').innerHTML=checks.filter(c=>c.st==='در جیب'||c.st==='به بانک سپرده‌شده').slice(0,3).map(c=>
+ `<div style="display:flex;align-items:center;gap:8px;padding:5px 0">
+   <span style="width:8px;height:8px;border-radius:50%;background:var(--danger);flex-shrink:0"></span>
+   <span style="flex:1;font-size:12.5px">${cust(c.c).name}</span>
+   <span class="sub" style="font-size:11px">${money(c.mab)} تومان • ${c.due}</span></div>`).join('')+
+ `<div style="text-align:center;margin-top:8px"><span class="chip teal" style="cursor:pointer" onclick="go('checks')">مشاهده همه چک‌ها ›</span></div>`;
+
+let heroAnim=null;
+function animateHero(){
+  const target=30180000, bar=$('hero-bar');
+  bar.style.transition='none'; bar.style.width='0%';
+  requestAnimationFrame(()=>{bar.style.transition='width 1.2s cubic-bezier(.2,.7,.3,1)';bar.style.width='86%';});
+  const t0=performance.now();
+  cancelAnimationFrame(heroAnim);
+  (function step(now){
+    const p=Math.min((now-t0)/1100,1), ease=1-Math.pow(1-p,3);
+    $('hero-money').textContent=money(target*ease)+' تومان';
+    if(p<1) heroAnim=requestAnimationFrame(step);
+  })(t0);
+}
+
+/* ================= منوی کامل ================= */
+const moreMenu=[
+ {sec:'عملیات روزانه',tiles:[
+   {r:'new-invoice',t:'فاکتور جدید',s:'ثبت فروش جدید',i:'🛒',g:['#8A5A00','#4A2E00'],gl:'#FFC94A'},
+   {r:'visits',t:'مسیر و ویزیت',s:'چک‌این مشتریان امروز',i:'🛣️',g:['#0E5D4E','#083A31'],gl:'#37D6B5'},
+   {r:'prepayments',t:'پیش‌دریافت',s:'ثبت دریافتی از مشتری',i:'👛',g:['#0F5132','#08301E'],gl:'#2ECC97'},
+   {r:'messages',t:'پیام‌ها',s:'اعلان‌های سامانه',i:'✉️',g:['#123A8A','#0A2255'],gl:'#5B8DEF',badge:'۲ جدید'}]},
+ {sec:'فروش و مالی',tiles:[
+   {r:'invoices',t:'فاکتورها و پیش‌فاکتورها',s:'گردش فروش',i:'🧾',g:['#1B4B9E','#0D2A5E'],gl:'#7FA9FF'},
+   {r:'checks',t:'چک‌ها',s:'سررسید و وصول',i:'💳',g:['#5C1F6B','#371242'],gl:'#B57BFF'},
+   {r:'reports',t:'گزارش‌ها',s:'تحلیل عملکرد فروش',i:'📊',g:['#8A2D5E','#521537'],gl:'#FF7EB3'}]},
+ {sec:'مدیریت',tiles:[
+   {r:'customers',t:'مشتریان',s:'پرونده و اعتبار',i:'👥',g:['#00564C','#003832'],gl:'#00C9B1'},
+   {r:'products',t:'کالا و انبار',s:'قیمت، موجودی، انبار',i:'📦',g:['#7A4E00','#4A2E00'],gl:'#FFC94A'}]},
+ {sec:'سیستم',tiles:[
+   {r:'settings',t:'تنظیمات',s:'حالت نمایشی فعال',i:'⚙️',g:['#334064','#1D2542'],gl:'#9BA8CE'},
+   {r:'about',t:'درباره برنامه',s:'نسخه ۱.۰.۰',i:'ℹ️',g:['#2C2C4E','#181830'],gl:'#9B8CFF'}]},
+];
+$('more-menu').innerHTML=moreMenu.map(g=>
+ `<div class="section"><div class="bar"></div><div class="title">${g.sec}</div></div>
+  <div class="grid2">${g.tiles.map(t=>tileHTML(t,t.badge||'')).join('')}</div>`).join('');
+
+/* ================= مشتریان ================= */
+function renderCustomers(){
+  const q=$('cq').value.trim(), f=state.cf;
+  const list=customers.filter(c=>{
+    const mq=!q||c.name.includes(q)||String(c.shmo).includes(q);
+    const mf=f==='همه'||(f==='بدهکار'&&c.man>0)||(f==='لیست سیاه'&&c.black)||(f==='فقط نقدی'&&c.cash);
+    return mq&&mf;});
+  $('customers-list').innerHTML=list.map(c=>`
+   <div class="row-item" onclick="openCust(${c.shmo})">
+     <div class="avatar ${c.black?'red':''}">${c.name.split(' ').map(w=>w[0]).slice(0,2).join('')}</div>
+     <div style="flex:1;min-width:0">
+       <div style="font-weight:700;font-size:13.5px">${c.name} ${c.black?'⚠️':''}</div>
+       <div style="display:flex;gap:6px;align-items:center;margin-top:3px"><span class="sub">${c.group}</span>${c.cash?'<span class="chip warn" style="font-size:9.5px;padding:2px 7px">نقدی</span>':''}</div>
+     </div>
+     <div style="text-align:left"><div style="font-weight:800;font-size:12px;color:${c.man>0?'var(--danger)':'var(--success)'}">${money(c.man)}</div>
+     <div class="sub" style="font-size:10px;margin-top:3px">اعتبار ${money(c.cred/1000000)}م</div></div>
+   </div>`).join('')||`<div style="text-align:center;padding:40px;color:var(--text2)">مشتری‌ای یافت نشد</div>`;
+}
+let curCust=null;
+function openCust(shmo){
+  curCust=cust(shmo); state.ct='خلاصه';
+  $('cust-head').innerHTML=`
+   <div class="h-row"><div class="avatar ${curCust.black?'red':''}" style="width:56px;height:56px;font-size:18px">${curCust.name.split(' ').map(w=>w[0]).slice(0,2).join('')}</div>
+   <div style="flex:1"><b style="font-size:15px">${curCust.name}</b><div style="display:flex;gap:6px;margin-top:5px"><span class="chip info" style="font-size:10px">C-${fa(curCust.shmo)}</span><span class="chip teal" style="font-size:10px">${curCust.group}</span></div></div></div>
+   <div style="display:flex;gap:10px;margin-top:14px">
+     <button class="btn3d gold" style="height:46px;font-size:13px" onclick="go('new-invoice')">🛒 فاکتور جدید</button>
+     <button class="btn3d ghost" style="height:46px;font-size:13px;flex:0 0 96px" onclick="toast('تماس: ${curCust.cell}')">📞 تماس</button>
+   </div>
+   <div style="display:flex;justify-content:space-around;text-align:center;margin-top:16px">
+     <div><div style="font-weight:800;font-size:12.5px;color:${curCust.man>0?'var(--danger)':'var(--success)'}">${money(curCust.man)}</div><div class="sub" style="font-size:10px">مانده بدهی</div></div>
+     <div><div style="font-weight:800;font-size:12.5px;color:var(--teal)">${money(curCust.cred)}</div><div class="sub" style="font-size:10px">اعتبار</div></div>
+     <div><div style="font-weight:800;font-size:12.5px;color:var(--info)">${fa(invoices.filter(i=>i.c===curCust.shmo).length)}</div><div class="sub" style="font-size:10px">فاکتورها</div></div>
+   </div>`;
+  custTab('خلاصه'); go('customer');
+  document.querySelectorAll('#pg-customer .pill').forEach((p,i)=>p.classList.toggle('on',i===0));
+}
+function custTab(t){
+  state.ct=t;
+  const inv=invoices.filter(i=>i.c===curCust.shmo), chk=checks.filter(c=>c.c===curCust.shmo);
+  if(t==='خلاصه') $('cust-body').innerHTML=`
+    <div class="card"><b style="font-size:13.5px">اطلاعات تماس و ویزیت</b>
+     <div style="display:flex;justify-content:space-between;padding:7px 0;font-size:12.5px"><span class="sub">آدرس</span><span style="max-width:60%;text-align:left">${curCust.addr}</span></div>
+     <div style="display:flex;justify-content:space-between;padding:7px 0;font-size:12.5px"><span class="sub">همراه</span><span>${curCust.cell}</span></div>
+     <div style="display:flex;justify-content:space-between;padding:7px 0;font-size:12.5px"><span class="sub">روز ویزیت</span><span>${curCust.day}</span></div>
+     <div style="display:flex;justify-content:space-between;padding:7px 0;font-size:12.5px"><span class="sub">وضعیت</span><span style="color:${curCust.black?'var(--danger)':curCust.cash?'var(--warn)':'var(--success)'}">${curCust.black?'لیست سیاه':curCust.cash?'فقط نقدی':'فعال'}</span></div>
+     <div class="sub" style="margin-top:6px">📍 موقعیت مکانی ثبت‌شده &nbsp;•&nbsp; 🧾 آخرین خرید: ${inv[0]?inv[0].date:'بدون سابقه'}</div></div>`;
+  else if(t==='فاکتورها') $('cust-body').innerHTML=inv.map(i=>`
+    <div class="row-item" onclick="toast('در اپ اندروید: جزئیات کامل اقلام و جمع‌بندی مالی')">
+      <div style="flex:1"><b style="font-size:13px">شماره ${fa(i.no)}</b> ${i.pre?'<span class="chip info" style="font-size:9px;padding:2px 6px">پیش‌فاکتور</span>':''}
+      <div class="sub" style="font-size:10.5px;margin-top:3px">${i.date} • ${fa(i.lines)} ردیف</div></div>
+      <div style="text-align:left"><b style="font-size:12.5px">${money(i.total)}</b><div style="margin-top:4px">${i.paid>=i.total?'<span class="chip green" style="font-size:9px;padding:2px 7px">تسویه‌شده</span>':`<span class="chip red" style="font-size:9px;padding:2px 7px">مانده ${money(i.total-i.paid)}</span>`}</div></div>
+    </div>`).join('')||'<div class="card" style="text-align:center;color:var(--text2)">فاکتوری ثبت نشده</div>';
+  else $('cust-body').innerHTML=chk.map(c=>`
+    <div class="card"><div style="display:flex;align-items:center;gap:8px"><b style="flex:1;font-size:13px">${c.bank} • ${c.no}</b>
+     <span class="chip ${c.st==='وصول‌شده'?'green':c.st==='برگشتی'?'red':'warn'}" style="font-size:10px">${c.st}</span></div>
+     <div class="sub" style="margin-top:6px">مبلغ: ${money(c.mab)} تومان • سررسید: ${c.due}</div></div>`).join('')||'<div class="card" style="text-align:center;color:var(--text2)">چکی ثبت نشده</div>';
+}
+
+/* ================= فاکتورها ================= */
+function renderInvoices(){
+  const f=state.if;
+  const list=invoices.filter(i=>f==='همه'||(f==='تسویه‌نشده'&&i.paid<i.total)||(f==='پیش‌فاکتور'&&i.pre));
+  $('invoices-list').innerHTML=list.map(i=>{
+    const c=cust(i.c), payRatio=Math.min(i.paid/i.total,1);
+    return `<div class="row-item" onclick="toast('در اپ اندروید: جزئیات کامل با اقلام، مالیات و عوارض')">
+     <div style="width:42px;height:42px;border-radius:14px;background:${i.pre?'linear-gradient(135deg,#334064,#1D2542)':'linear-gradient(135deg,#00564C,#003832)'};display:flex;align-items:center;justify-content:center;font-size:19px;flex-shrink:0">${i.pre?'📑':'🧾'}</div>
+     <div style="flex:1;min-width:0"><b style="font-size:13px">${c.name}</b>
+      <div class="sub" style="font-size:10.5px;margin-top:3px">شماره ${fa(i.no)} • ${i.date} • ${i.time}</div>
+      ${(!i.pre&&i.paid<i.total)?`<div style="height:5px;border-radius:50px;background:rgba(255,255,255,.1);margin-top:8px;overflow:hidden"><div style="width:${payRatio*100}%;height:100%;background:linear-gradient(90deg,#2ECC97,#00C9B1);border-radius:50px"></div></div>`:''}
+     </div>
+     <div style="text-align:left"><b style="font-size:12.5px">${money(i.total)}</b>
+      <div style="margin-top:4px">${i.pre?'<span class="chip info" style="font-size:9px;padding:2px 7px">پیش‌فاکتور</span>':i.paid>=i.total?'<span class="chip green" style="font-size:9px;padding:2px 7px">تسویه‌شده</span>':i.pending?'<span class="chip warn" style="font-size:9px;padding:2px 7px">در انتظار تأیید</span>':'<span class="chip red" style="font-size:9px;padding:2px 7px">مانده‌دار</span>'}</div></div>
+    </div>`;}).join('');
+}
+
+/* ================= فاکتور جدید ================= */
+function renderKalas(){
+  const q=$('kq').value.trim();
+  $('kala-list').innerHTML=kalas.filter(k=>!q||k.name.includes(q)||k.code.includes(q)).slice(0,6).map(k=>{
+    const low=k.stock<k.reo;
+    return `<div class="row-item" style="cursor:default">
+     <div style="flex:1"><b style="font-size:12.5px">${k.name}</b>
+      <div class="sub" style="font-size:10px;margin-top:3px">${k.group} • موجودی: <span style="color:${low?'var(--danger)':'var(--success)'}">${fa(k.stock)} ${k.unit}</span></div></div>
+     <b style="color:var(--gold);font-size:12px">${money(k.price)}</b>
+     <div onclick="addKala(${k.shka})" style="width:34px;height:34px;border-radius:50%;background:linear-gradient(#00A38F,#007D6E);display:flex;align-items:center;justify-content:center;color:#fff;font-size:18px;cursor:pointer;flex-shrink:0">＋</div>
+    </div>`;}).join('');
+}
+function addKala(shka){ state.cart[shka]=(state.cart[shka]||0)+1; renderCart(); toast('به سبد اضافه شد'); }
+function chQty(shka,d){
+  state.cart[shka]=(state.cart[shka]||0)+d;
+  if(state.cart[shka]<=0) delete state.cart[shka];
+  renderCart();
+}
+function renderCart(){
+  const ids=Object.keys(state.cart).map(Number);
+  $('cart-title').textContent=`سبد سفارش (${fa(ids.length)} کالا)`;
+  let sum=0;
+  $('cart-list').innerHTML=ids.map(id=>{
+    const k=kalas.find(x=>x.shka===id), q=state.cart[id], line=k.price*q; sum+=line;
+    return `<div class="card" style="padding:12px">
+     <div style="display:flex;align-items:center;gap:8px"><b style="flex:1;font-size:12.5px">${k.name}</b><span onclick="chQty(${id},-99)" style="color:var(--danger);cursor:pointer;font-size:15px">✕</span></div>
+     <div style="display:flex;align-items:center;gap:10px;margin-top:9px">
+       <div style="display:flex;align-items:center;gap:2px;background:#131C33;border-radius:12px;padding:3px">
+        <span onclick="chQty(${id},1)" style="color:var(--teal);cursor:pointer;padding:4px 7px;font-size:15px">＋</span>
+        <b style="padding:0 8px;font-size:13px">${fa(q)}</b>
+        <span onclick="chQty(${id},-1)" style="color:var(--warn);cursor:pointer;padding:4px 7px;font-size:17px">－</span></div>
+       <span class="sub" style="flex:1;font-size:10.5px">${k.unit} × ${money(k.price)}</span>
+       <b style="color:var(--teal);font-size:12.5px">${money(line)}</b>
+     </div></div>`;}).join('');
+  const box=$('cart-summary');
+  if(!ids.length){box.style.display='none';return}
+  const disc=0, tax=(sum-disc)*0.10, av=tax*0.25, total=sum-disc+tax+av;
+  box.style.display='block';
+  box.innerHTML=`<div class="card" style="margin-top:12px">
+    <div style="display:flex;justify-content:space-between;padding:5px 0;font-size:12.5px"><span class="sub">جمع اقلام</span><b>${money(sum)}</b></div>
+    <div style="display:flex;justify-content:space-between;padding:5px 0;font-size:12.5px"><span class="sub">تخفیف</span><b style="color:var(--warn)">۰</b></div>
+    <div style="display:flex;justify-content:space-between;padding:5px 0;font-size:12.5px"><span class="sub">مالیات (۱۰٪)</span><b>${money(tax)}</b></div>
+    <div style="display:flex;justify-content:space-between;padding:5px 0;font-size:12.5px"><span class="sub">عوارض (۲۵٪ مالیات)</span><b>${money(av)}</b></div>
+    <div style="height:1px;background:var(--stroke);margin:8px 0"></div>
+    <div style="display:flex;justify-content:space-between;padding:5px 0;font-size:13.5px"><span class="sub">قابل پرداخت</span><b style="color:var(--teal);font-size:16px">${money(total)}</b></div>
+   </div>
+   <div style="height:14px"></div>
+   <button class="btn3d gold" onclick="submitInvoice()">${state.pre?'📑 ثبت پیش‌فاکتور نهایی':'🛒 ثبت فاکتور نهایی'}</button>`;
+}
+function togglePre(){ state.pre=!state.pre; $('ni-type').textContent=state.pre?'پیش‌فاکتور':'فاکتور قطعی'; renderCart(); }
+function submitInvoice(){
+  const ids=Object.keys(state.cart);
+  if(!ids.length){ toast('سبد سفارش خالی است'); return; }
+  state.cart={}; renderCart();
+  go('invoices');
+  toast('ثبت شد و به صف همگام‌سازی اضافه گردید ✓ (در اپ: POST /Post/AddOnlineOrder)');
+}
+
+/* ================= کالاها ================= */
+function renderProducts(){
+  const q=$('pq').value.trim();
+  $('products-list').innerHTML=kalas.filter(k=>!q||k.name.includes(q)||k.code.includes(q)).map(k=>{
+    const low=k.stock<k.reo, ratio=Math.min(Math.max(k.stock/(k.reo*3),0.03),1);
+    return `<div class="card">
+     <div style="display:flex;align-items:center;gap:10px">
+      <div style="width:40px;height:40px;border-radius:13px;background:linear-gradient(135deg,#7A4E00,#4A2E00);display:flex;align-items:center;justify-content:center;color:var(--gold);font-weight:900;font-size:12px">${k.code.slice(0,2)}</div>
+      <div style="flex:1;min-width:0"><b style="font-size:12.5px">${k.name}</b><div class="sub" style="font-size:9.5px;margin-top:3px">${k.group} • کد ${k.code} • ${k.anbar}</div></div>
+      <b style="color:var(--gold);font-size:12px">${money(k.price)}</b></div>
+     <div style="display:flex;align-items:center;gap:10px;margin-top:11px">
+      <div style="flex:1;height:6px;border-radius:50px;background:rgba(255,255,255,.09);overflow:hidden"><div style="width:${ratio*100}%;height:100%;border-radius:50px;background:${low?'linear-gradient(90deg,#FF6B6B,#FF9E57)':'linear-gradient(90deg,#2ECC97,#00C9B1)'}"></div></div>
+      <span class="sub" style="font-size:10.5px;color:${low?'var(--danger)':'var(--text2)'}">موجودی ${fa(k.stock)} ${k.unit} ${low?'⚠️':''}</span></div></div>`;}).join('');
+}
+
+/* ================= چک‌ها ================= */
+function renderChecks(){
+  const f=state.chf;
+  $('checks-list').innerHTML=checks.filter(c=>f==='همه'||c.st===f).map(c=>`
+   <div class="card">
+    <div style="display:flex;align-items:center;gap:10px">
+     <div style="width:40px;height:40px;border-radius:13px;background:linear-gradient(135deg,#5C1F6B,#371242);display:flex;align-items:center;justify-content:center;font-size:17px">💳</div>
+     <div style="flex:1;min-width:0"><b style="font-size:13px">${cust(c.c).name}</b><div class="sub" style="font-size:10.5px;margin-top:2px">${c.bank} • ${c.shobe}</div></div>
+     <span class="chip ${c.st==='وصول‌شده'?'green':c.st==='برگشتی'?'red':c.st==='در جیب'?'teal':'warn'}" style="font-size:10px">${c.st}</span></div>
+    <div style="display:flex;align-items:center;gap:8px;margin-top:11px;background:rgba(255,255,255,.06);border-radius:12px;padding:8px 12px">
+     <span class="sub" style="font-size:11px">شماره ${c.no}</span><span style="flex:1"></span>
+     <span class="sub" style="font-size:11px">سررسید ${c.due}</span><span style="flex:1"></span>
+     <b style="font-size:12.5px;color:${c.st==='برگشتی'?'var(--danger)':'var(--teal)'}">${money(c.mab)}</b></div></div>`).join('');
+}
+
+/* ================= مسیر ================= */
+function renderVisits(){
+  const done=(id)=>state.visitDone[id]?'done':null;
+  $('visits-list').innerHTML=visits.map((v,i)=>{
+    let st=v.st; if(state.visitDone[v.id]) st='done';
+    const color=st==='done'?'var(--success)':st==='skip'?'rgba(255,255,255,.35)':'var(--teal)';
+    return `<div class="tl">
+     <div class="line"><div class="dot" style="background:${color};box-shadow:0 0 12px ${color}"></div>${i<visits.length-1?'<div class="rail"></div>':''}</div>
+     <div class="card" style="flex:1;margin-bottom:8px">
+      <div style="display:flex;align-items:center;gap:8px">
+       <b style="flex:1;font-size:13px">${fa(i+1)}. ${cust(v.c).name}</b>
+       <span class="chip ${st==='done'?'green':st==='pending'?'teal':'warn'}" style="font-size:10px">${st==='done'?'انجام‌شده':st==='pending'?'در انتظار':'حذف‌شده'}</span></div>
+      <div class="sub" style="margin-top:5px;font-size:10.5px">📍 ${cust(v.c).addr} • 🕐 ${v.win}</div>
+      ${v.note?`<div class="sub" style="margin-top:5px;font-size:10px">یادداشت: ${v.note}</div>`:''}
+      ${st==='pending'?`<button class="btn3d" style="height:42px;font-size:12.5px;margin-top:10px" onclick="checkIn(${v.id})">📍 ثبت ویزیت (چک‌این)</button>`:''}
+     </div></div>`;}).join('');
+}
+function checkIn(id){
+  state.visitDone[id]=true; renderVisits();
+  toast('ویزیت ثبت شد ✓ (در اپ: POST /Post/AddVisit + ارسال Lat/Lng)');
+  const doneN=visits.filter(v=>v.st==='done'||state.visitDone[v.id]).length;
+  if(doneN===visits.length) setTimeout(()=>toast('مسیر امروز کامل شد! 🎉'),2800);
+}
+
+/* ================= پیام‌ها ================= */
+function renderMessages(){
+  $('messages-list').innerHTML=messages.map(m=>`
+   <div class="card" onclick="toggleMsg(${m.id})">
+    <div style="display:flex;align-items:center;gap:8px">
+     <span style="width:${m.read?7:10}px;height:${m.read?7:10}px;border-radius:50%;background:${m.read?'rgba(255,255,255,.3)':m.p==='فوری'?'var(--danger)':'var(--warn)'};flex-shrink:0"></span>
+     <b style="flex:1;font-size:13px;font-weight:${m.read?700:800}">${m.t}</b>
+     ${m.p!=='عادی'?`<span class="chip ${m.p==='فوری'?'red':'warn'}" style="font-size:9.5px">${m.p}</span>`:''}</div>
+    <div class="sub" style="margin-top:8px;font-size:12px;line-height:1.9;display:-webkit-box;-webkit-line-clamp:${state.expanded===m.id?'99':'2'};-webkit-box-orient:vertical;overflow:hidden">${m.b}</div>
+    <div style="display:flex;align-items:center;gap:6px;margin-top:10px" class="sub">
+     <span>${m.read?'📬':'🔔'}</span><span style="font-size:10px;flex:1">${m.s} • ${m.d} ساعت ${m.tm}</span>
+     <span style="color:var(--teal);font-weight:800;font-size:11px">${state.expanded===m.id?'بستن':'مشاهده کامل'}</span></div></div>`).join('');
+}
+function toggleMsg(id){ state.expanded=state.expanded===id?null:id; const m=messages.find(x=>x.id===id); m.read=true; renderMessages(); }
+
+/* ================= پیش‌دریافت ================= */
+$('prepay-list').innerHTML=prepay.map(p=>{
+ const icon=p.type==='نقدی'?'👛':p.type==='کارت‌خوان'?'💳':'🧾';
+ return `<div class="card"><div style="display:flex;align-items:center;gap:10px">
+  <div style="width:38px;height:38px;border-radius:12px;background:linear-gradient(135deg,#0F5132,#08301E);display:flex;align-items:center;justify-content:center;font-size:17px">${icon}</div>
+  <div style="flex:1"><b style="font-size:12.5px">${cust(p.c).name}</b><div class="sub" style="font-size:10.5px;margin-top:2px">${p.date} • ${p.note}</div></div>
+  <div style="text-align:left"><b style="color:var(--success);font-size:12px">${money(p.mab)}</b><div style="margin-top:3px"><span class="chip teal" style="font-size:9px;padding:2px 7px">${p.type}</span></div></div>
+ </div></div>`}).join('');
+
+/* ================= راه‌اندازی ================= */
+renderCustomers();renderInvoices();renderKalas();renderCart();renderProducts();renderChecks();renderVisits();renderMessages();
+setTimeout(()=>{const s=$('splash');s.style.opacity='0';setTimeout(()=>s.remove(),500);},1600);
+</script>
+</body>
+</html>
