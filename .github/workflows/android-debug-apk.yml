@@ -1,0 +1,140 @@
+# ساخت APK نسخه دیباگ برای «آتیران همراه (نمایشگر دیتابیس)»
+#
+# - با پوش‌کردن تگی مثل v4.9.8-debug اجرا می‌شود: build می‌گیرد، APK را artifact
+#   می‌کند و یک «ریلیس پیش‌نویس (draft)» می‌سازد که خودتان منتشرش می‌کنید.
+# - دستی هم قابل اجراست (Run workflow)؛ فقط artifact می‌دهد، ریلیس نمی‌سازد.
+# - ریلیس به‌صورت draft باز می‌ماند تا انتشار عمومی یک‌شبه و خودکار نشود.
+
+name: Android debug APK
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      publish_release:
+        description: "هم ریلیس draft بساز (با نام تگِ انتخابی)"
+        type: boolean
+        default: false
+      release_tag:
+        description: "نام تگ برای ریلیس (فقط اگر گزینهٔ بالا روشن باشد)"
+        required: false
+        default: ""
+
+permissions:
+  contents: write
+
+concurrency:
+  group: android-debug-apk-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: assembleDebug
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install platform 35 / build-tools
+        run: sdkmanager "platforms;android-35" "build-tools;35.0.0"
+
+      - name: Set up Gradle 8.7 (repo has no wrapper)
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "8.7"
+
+      - name: Toolchain info
+        run: |
+          java -version
+          gradle --version | sed -n '1,10p'
+          grep -E "versionCode|versionName" AtiranHamrahViewer/app/build.gradle.kts
+
+      - name: Build debug APK
+        working-directory: AtiranHamrahViewer
+        run: gradle --no-daemon assembleDebug
+
+      - name: Collect APK and checksum
+        id: pkg
+        run: |
+          set -euo pipefail
+          SRC="AtiranHamrahViewer/app/build/outputs/apk/debug/app-debug.apk"
+          test -f "$SRC"
+
+          if [ "${{ github.event_name }}" = "push" ]; then
+            NAME="${GITHUB_REF_NAME}"
+          else
+            NAME="${{ github.event.inputs.release_tag }}"
+            [ -z "$NAME" ] && NAME="ci-$(git rev-parse --short HEAD)"
+          fi
+
+          mkdir -p dist
+          cp "$SRC" "dist/atiran-viewer-${NAME}.apk"
+          ( cd dist && sha256sum "atiran-viewer-${NAME}.apk" > "atiran-viewer-${NAME}.apk.sha256" )
+          cat "dist/atiran-viewer-${NAME}.apk.sha256"
+
+          echo "tag=${NAME}" >> "$GITHUB_OUTPUT"
+          echo "apk=dist/atiran-viewer-${NAME}.apk" >> "$GITHUB_OUTPUT"
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          # نام ثابت: نام artifact در Actions کاراکتر / و برخی کاراکترها را قبول نمی‌کند
+          name: atiran-viewer-debug-apk
+          path: dist/atiran-viewer-*.apk
+          if-no-files-found: error
+
+      - name: Write release notes
+        if: github.event_name == 'push' || github.event.inputs.publish_release == 'true'
+        run: |
+          set -euo pipefail
+          TAG="${{ steps.pkg.outputs.tag }}"
+          {
+            echo "## $TAG — نسخهٔ دیباگ"
+            echo
+            echo "- بیلد: \`${TAG}\` (debug، با کلید پیش‌فرض دیباگ — برای تست داخلی، نه انتشار در کافه‌بازار)"
+            echo "- کامیت: \`${GITHUB_SHA}\`"
+            echo "- نصب: \`adb install -r atiran-viewer-${TAG}.apk\`"
+            echo
+            echo "### فایل‌ها"
+            echo "- \`atiran-viewer-${TAG}.apk\`"
+            echo "- \`atiran-viewer-${TAG}.apk.sha256\` (کنترل یکپارچگی)"
+            echo
+            echo "ساخته‌شده خودکار توسط این workflow."
+          } > dist/release-notes.md
+          cat dist/release-notes.md
+
+      - name: Create draft release
+        if: github.event_name == 'push' || github.event.inputs.publish_release == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          TAG="${{ steps.pkg.outputs.tag }}"
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release upload "$TAG" \
+              "dist/atiran-viewer-${TAG}.apk" \
+              "dist/atiran-viewer-${TAG}.apk.sha256" \
+              --clobber
+          else
+            gh release create "$TAG" \
+              --draft \
+              --title "$TAG (debug APK)" \
+              --notes-file dist/release-notes.md \
+              "dist/atiran-viewer-${TAG}.apk" \
+              "dist/atiran-viewer-${TAG}.apk.sha256"
+          fi
+          echo "ریلیس draft ساخته شد: $TAG (برای عمومی‌شدن باید Publish کنید)"
